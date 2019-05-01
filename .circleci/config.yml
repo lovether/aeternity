@@ -48,6 +48,10 @@ references:
     environment:
       DOCKERHUB_REPO: aeternity/aeternity
 
+  eqc_machine_config: &eqc_machine_config
+    machine: true
+    working_directory: ~/aeternity
+
   setup_remote_docker: &setup_remote_docker
     setup_remote_docker:
       docker_layer_caching: true
@@ -766,6 +770,28 @@ jobs:
       - store_artifacts:
           path: *system_test_host_logs
 
+  stateless_quickcheck_config_smoke_test:
+    <<: *machine_config
+    steps:
+      - checkout
+      - *prepare_ubuntu_user
+      - run:
+          name: QuickCheck Config Smoke Test
+          command: |
+            sudo -u ubuntu -E -H .circleci/eqc-docker-run sh -c 'make eqc-lib/eqc && ( export ERL_LIBS="$(ls -d $(pwd)/eqc-lib/eqc/*)"; make quickcheck-version; )'
+      - *fail_notification
+
+  quickcheck_tests:
+    <<: *machine_config
+    steps:
+      - checkout
+      - *prepare_ubuntu_user
+      - run:
+          name: QuickCheck Tests
+          command: |
+            sudo -u ubuntu -E -H .circleci/eqc-docker-run sh -c 'make eqc-lib/eqc && ( export ERL_LIBS="$(ls -d $(pwd)/eqc-lib/eqc/*)"; make quickcheck-version && make quickcheck-registration && make quickcheck-start-stop; )'
+      - *fail_notification
+
   deploy_integration:
     executor: infrastructure_container_unstable
     <<: *infrastructure_config
@@ -862,6 +888,17 @@ jobs:
 # and all its transitively dependent jobs must also have a filters tags section.
 workflows:
   version: 2
+  tmp_eqc_run:
+    jobs:
+      - quickcheck_tests:
+          filters:
+            branches:
+              only: PT-164548714-eqc-run--ci-wip
+      - stateless_quickcheck_config_smoke_test:
+          filters:
+            branches:
+              only: PT-164548714-eqc-run--ci-wip
+
   build_test_deploy:
     jobs:
       - build:
@@ -871,6 +908,7 @@ workflows:
                 - env/dev1
                 - env/dev2
                 - system-tests
+                - PT-164548714-eqc-run--ci-wip
             tags:
               only: *tag_regex
 
@@ -882,6 +920,7 @@ workflows:
                 - env/dev2
                 - system-tests
                 - master
+                - PT-164548714-eqc-run--ci-wip
 
       - docker_system_smoke_tests:
           requires:
@@ -1047,6 +1086,7 @@ workflows:
             branches:
               ignore:
                 - system-tests
+                - PT-164548714-eqc-run--ci-wip
             tags:
               only: *tag_regex
 
@@ -1306,3 +1346,16 @@ workflows:
                 - master
     jobs:
       - docker_system_tests
+
+  property_based_tests:
+    triggers:
+      - schedule:
+          # run at midnight UTC
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - stateless_quickcheck_config_smoke_test
+      - quickcheck_tests

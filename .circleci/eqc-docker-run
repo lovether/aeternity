@@ -1,0 +1,7 @@
+#!/bin/sh
+
+Image="aeternity/builder@sha256:08e29e56c44c77b7cd5114ea7191933f31720ecd8e2b80aaf7520af715cd47c5"
+User="builder"
+
+echo "TODO --rm" >&2
+docker run -e EQC_REGISTRATION_KEY -v `pwd`:`pwd` -w `pwd` --user "${User:?}" "${Image:?}" "$@"

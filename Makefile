@@ -298,6 +298,36 @@ aevm-test-deps:
 $(AEVM_EXTERNAL_TEST_DIR)/ethereum_tests:
 	@git clone https://github.com/ethereum/tests.git $(AEVM_EXTERNAL_TEST_DIR)/ethereum_tests
 
+EQC_CMD_version = eqc:version()
+EQC_CMD_start = eqc:start()
+EQC_CMD_start-stop = {eqc:start(), eqc:stop()}
+.PHONY: quickcheck-version quickcheck-start quickcheck-stop quickcheck-start-stop
+quickcheck-version quickcheck-start quickcheck-start-stop: quickcheck-%:
+	erl -noinput -eval 'io:format("~p~n", [$(EQC_CMD_$*)]), init:stop().'
+
+## Sample registration usage: `make eqc-lib/eqc && ( export ERL_LIBS="$(ls -d $(pwd)/eqc-lib/eqc/*)"; env EQC_REGISTRATION_KEY='YourLicenseHere' make quickcheck-registration; )`
+.PHONY: quickcheck-registration
+quickcheck-registration:
+	erl -noinput -run eqc force_registration "$${EQC_REGISTRATION_KEY:?}" -run init stop
+
+EQC_LIB_VSN = 1.44.1
+EQC_LIB_DOWNLOAD_URL = http://quviq-licencer.com/downloads/eqcR20-$(EQC_LIB_VSN).zip
+EQC_LIB_DOWNLOAD_SHA256 = c02a978cb7b7665fee220dda303c86fd517b89ce7fdafc5cc7181eadab26424e
+
+eqc-lib/eqc: | eqc-lib/eqc.zip
+	unzip $(word 1,$|) -d $@
+	ls -d "$@/Quviq QuickCheck version $(EQC_LIB_VSN)" > /dev/null
+	ls "$@/Quviq QuickCheck version $(EQC_LIB_VSN)/eqc-$(EQC_LIB_VSN)/ebin/eqc.beam" > /dev/null
+
+.SECONDARY: eqc-lib/eqc.zip
+eqc-lib/eqc.zip: | eqc-lib/eqc.zip.unchecked
+	echo "$(EQC_LIB_DOWNLOAD_SHA256)  $(word 1,$|)" | shasum -a 256 -c -
+	mv $(word 1,$|) $@
+
+.INTERMEDIATE: eqc-lib/eqc.zip.unchecked
+eqc-lib/eqc.zip.unchecked:
+	curl -fsSL --create-dirs -o $@ $(EQC_LIB_DOWNLOAD_URL)
+
 ## Info re tests using QuickCheck.
 EQC_TEST_REPO = https://github.com/Quviq/epoch-eqc.git
 EQC_TEST_VERSION = c9d5971d

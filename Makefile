@@ -298,7 +298,7 @@ $(AEVM_EXTERNAL_TEST_DIR)/ethereum_tests:
 
 .PHONY: eqc-test
 eqc-test: eqc
-	$(REBAR) as test,eqc eunit
+	$(REBAR) as test,eqc eunit --app eqc_test
 
 EQC_TEST_REPO = https://github.com/Quviq/epoch-eqc.git
 EQC_TEST_VERSION = 9e58e8023
